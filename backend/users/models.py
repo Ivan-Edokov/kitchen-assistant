@@ -25,3 +25,31 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+
+class Subscription(models.Model):
+    follower = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follower',
+        verbose_name='Подписчик',
+    )
+
+    follow = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follow',
+        verbose_name='Автор',
+    )
+
+    class Meta:
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['follower', 'follow'], name='unicue_ubscription'
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.follower.username} подписан на {self.follow.username}'
