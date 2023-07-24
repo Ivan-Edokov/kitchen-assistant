@@ -1,10 +1,6 @@
-from importlib.metadata import requires
-from unittest.util import _MAX_LENGTH
-
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-# from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from users.models import User
 

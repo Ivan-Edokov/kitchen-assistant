@@ -5,7 +5,7 @@ from rest_framework.response import Response
 
 from users.models import User
 
-from .permissions import PostOrAutorised
+from .permissions import RegisterProfileOrAutorised
 from .serializers import (
     UserSerializer,
     UserSignupSerializer,
@@ -21,9 +21,8 @@ class UserViewSet(viewsets.ModelViewSet):
 
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    # permission_classes = (PostOrAutorised,)
+    permission_classes = (RegisterProfileOrAutorised,)
     lookup_field = 'username'
-    print(queryset)
 
     def create(self, request, *args, **kwargs):
         """Самостоятельная регистрация пользователя.
