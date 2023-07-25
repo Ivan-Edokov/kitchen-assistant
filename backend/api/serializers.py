@@ -1,9 +1,12 @@
+from dataclasses import field
+
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
 
 from ingredients.models import Ingredient
+from recipes.models import Recipe, RecipeIngredients
 from users.models import User
 
 
@@ -115,3 +118,21 @@ class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ('id', 'name', 'measurement_unit')
+
+
+class RecipeSerializer(serializers.ModelSerializer):
+    """Сериализер для Рецептов"""
+
+    author = UserInstanceSerializer()
+
+    class Meta:
+        model = Recipe
+        fields = (
+            "id",
+            "name",
+            "image",
+            "text",
+            "cooking_time",
+            "author",
+            "ingredients",
+        )

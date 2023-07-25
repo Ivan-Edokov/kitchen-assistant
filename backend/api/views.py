@@ -5,6 +5,7 @@ from rest_framework.response import Response
 
 from users.models import User
 from ingredients.models import Ingredient
+from recipes.models import Recipe, RecipeIngredients
 
 from .permissions import RegisterProfileOrAutorised, OnlyGet
 from .serializers import (
@@ -13,6 +14,7 @@ from .serializers import (
     UserInstanceSerializer,
     UserSetPasswordSerializer,
     IngredientSerializer,
+    RecipeSerializer,
 )
 
 
@@ -75,3 +77,11 @@ class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     permission_classes = (OnlyGet,)
+
+
+class RecipeViewSet(viewsets.ModelViewSet):
+    """ВьюСет для Рецептов"""
+
+    queryset = Recipe.objects.all()
+    serializer_class = RecipeSerializer
+    # permission_classes =
