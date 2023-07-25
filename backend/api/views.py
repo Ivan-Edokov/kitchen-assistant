@@ -4,13 +4,15 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from users.models import User
+from ingredients.models import Ingredient
 
-from .permissions import RegisterProfileOrAutorised
+from .permissions import RegisterProfileOrAutorised, OnlyGet
 from .serializers import (
     UserSerializer,
     UserSignupSerializer,
     UserInstanceSerializer,
     UserSetPasswordSerializer,
+    IngredientSerializer,
 )
 
 
@@ -63,3 +65,13 @@ class UserViewSet(viewsets.ModelViewSet):
             self.perform_update(serializer)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class IngredientViewSet(viewsets.ModelViewSet):
+    """Набор представлений для ингредиентов.
+    Поддержка только GET, ограниченная permission.
+    Поддержка поиска по имени пользователя"""
+
+    queryset = Ingredient.objects.all()
+    serializer_class = IngredientSerializer
+    permission_classes = (OnlyGet,)
