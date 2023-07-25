@@ -21,3 +21,10 @@ class RegisterProfileOrAutorised(permissions.BasePermission):
             or (view.action == 'create' and not request.user.is_authenticated)
             or (view.action == 'retrieve' and path_end != 'me')
         )
+
+
+class OnlyGet(permissions.BasePermission):
+    """Разрешение только для чтения."""
+
+    def has_permission(self, request, viev):
+        return request.method == 'GET'

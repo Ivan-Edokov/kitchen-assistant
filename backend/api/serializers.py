@@ -2,6 +2,8 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from rest_framework import serializers
+
+from ingredients.models import Ingredient
 from users.models import User
 
 
@@ -105,3 +107,11 @@ class UserSetPasswordSerializer(serializers.ModelSerializer):
 
         data['password'] = make_password(data['new_password'])
         return data
+
+
+class IngredientSerializer(serializers.ModelSerializer):
+    """Сериализер для Ингидиента"""
+
+    class Meta:
+        model = Ingredient
+        fields = ('id', 'name', 'measurement_unit')

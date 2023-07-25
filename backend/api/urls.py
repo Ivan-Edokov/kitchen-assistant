@@ -1,12 +1,12 @@
 from django.urls import include, path
 from rest_framework import routers
 
-from .views import UserViewSet
+from .views import UserViewSet, IngredientViewSet
 
 app_name = 'api'
 
 router = routers.DefaultRouter()
-# router.register('auth', AuthViewSet, basename='auth')
+router.register('ingredients', IngredientViewSet, basename='ingredients')
 router.register('users', UserViewSet, basename='users')
 
 
