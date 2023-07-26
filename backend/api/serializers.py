@@ -1,4 +1,4 @@
-from dataclasses import field
+from dataclasses import fields
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from rest_framework import serializers
 
 from ingredients.models import Ingredient
-from recipes.models import Recipe, RecipeIngredients
+from recipes.models import Recipe, RecipeIngredients, Tag
 from users.models import User
 
 
@@ -120,7 +120,7 @@ class IngredientSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'measurement_unit')
 
 
-class RecipeIngredientSerializer(serializers.HyperlinkedIdentityField):
+class RecipeIngredientsSerializer(serializers.HyperlinkedModelSerializer):
 
     id = serializers.ReadOnlyField(source='ingredient.id')
     name = serializers.ReadOnlyField(source='ingredient.name')
@@ -138,22 +138,32 @@ class RecipeIngredientSerializer(serializers.HyperlinkedIdentityField):
         )
 
 
+class TagSerializer(serializers.ModelSerializer):
+    """Сериализер для Тегов"""
+
+    class Meta:
+        model = Tag
+        fields = ('id', 'name', 'color', 'slug')
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     """Сериализер для Рецептов"""
 
     author = UserInstanceSerializer()
-    ingredients = RecipeIngredientSerializer(
+    ingredients = RecipeIngredientsSerializer(
         source='recipe_ingredients', many=True
     )
+    tags = TagSerializer(many=True, read_only=True)
 
     class Meta:
         model = Recipe
         fields = (
-            "id",
-            "name",
-            "image",
-            "text",
-            "cooking_time",
-            "author",
-            "ingredients",
+            'id',
+            'name',
+            'image',
+            'text',
+            'cooking_time',
+            'author',
+            'ingredients',
+            'tags',
         )

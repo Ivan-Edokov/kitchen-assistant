@@ -5,7 +5,7 @@ from rest_framework.response import Response
 
 from users.models import User
 from ingredients.models import Ingredient
-from recipes.models import Recipe, RecipeIngredients
+from recipes.models import Recipe, Tag
 
 from .permissions import RegisterProfileOrAutorised, OnlyGet
 from .serializers import (
@@ -15,6 +15,7 @@ from .serializers import (
     UserSetPasswordSerializer,
     IngredientSerializer,
     RecipeSerializer,
+    TagSerializer,
 )
 
 
@@ -84,4 +85,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
-    # permission_classes =
+    # permission_classes = ()
+
+
+class TagViewSet(viewsets.ModelViewSet):
+    """ВьюСет для Тегов"""
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    permission_classes = (OnlyGet,)

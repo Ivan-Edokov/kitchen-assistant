@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'ingredients.apps.IngredientsConfig',
     'recipes.apps.RecipesConfig',
     'users.apps.UsersConfig',
+    'colorfield',
 ]
 
 MIDDLEWARE = [
