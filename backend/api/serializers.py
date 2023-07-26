@@ -120,10 +120,31 @@ class IngredientSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'measurement_unit')
 
 
+class RecipeIngredientSerializer(serializers.HyperlinkedIdentityField):
+
+    id = serializers.ReadOnlyField(source='ingredient.id')
+    name = serializers.ReadOnlyField(source='ingredient.name')
+    measurement_unit = serializers.ReadOnlyField(
+        source='ingredient.measurement_unit'
+    )
+
+    class Meta:
+        model = RecipeIngredients
+        fields = (
+            "id",
+            "name",
+            "measurement_unit",
+            "amount",
+        )
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     """Сериализер для Рецептов"""
 
     author = UserInstanceSerializer()
+    ingredients = RecipeIngredientSerializer(
+        source='recipe_ingredients', many=True
+    )
 
     class Meta:
         model = Recipe

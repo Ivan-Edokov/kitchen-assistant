@@ -48,15 +48,15 @@ class Recipe(models.Model):
 
 
 class RecipeIngredients(models.Model):
-    ingredients = models.ForeignKey(
+    ingredient = models.ForeignKey(
         Ingredient,
-        related_name='recipe',
+        related_name='recipe_ingredients',
         verbose_name='Ингридиенты',
         on_delete=models.CASCADE,
     )
     recipe = models.ForeignKey(
         Recipe,
-        related_name='ingredients',
+        related_name='recipe_ingredients',
         verbose_name='Руцепт',
         on_delete=models.CASCADE,
     )
