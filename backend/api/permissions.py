@@ -10,7 +10,6 @@ class RegisterProfileOrAutorised(permissions.BasePermission):
 
     def has_permission(self, request, view):
         path_end = request.path_info.split('/')[-2]
-
         auth_allow_method = ('GET', 'POST')
         return (
             (
@@ -28,3 +27,10 @@ class OnlyGet(permissions.BasePermission):
 
     def has_permission(self, request, viev):
         return request.method == 'GET'
+
+
+class OnlyGetAutorised(permissions.BasePermission):
+    """Разрешения для чтения авторизованных"""
+
+    def has_permission(self, request, view):
+        return request.method == 'GET' and request.user.is_authenticated

@@ -1,4 +1,4 @@
-from dataclasses import fields
+# from dataclasses import fields
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
@@ -7,7 +7,7 @@ from rest_framework import serializers
 
 from ingredients.models import Ingredient
 from recipes.models import Recipe, RecipeIngredients, Tag
-from users.models import User
+from users.models import User, Subscription
 
 
 MESSAGES = {
@@ -166,4 +166,36 @@ class RecipeSerializer(serializers.ModelSerializer):
             'author',
             'ingredients',
             'tags',
+        )
+
+
+class RecipeShotSerializer(serializers.ModelSerializer):
+    """Сериализер для Рецептов.
+    Информация о рецепти для листа подписок
+    """
+
+    class Meta:
+        model = Recipe
+        fields = (
+            'id',
+            'name',
+            'image',
+            'cooking_time',
+        )
+
+
+class SubscriptionSerializer(serializers.ModelSerializer):
+    """Сериализер для подписки."""
+
+    recipes = RecipeShotSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+            'recipes',
         )

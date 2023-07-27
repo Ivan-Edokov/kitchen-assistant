@@ -3,11 +3,15 @@ from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from users.models import User
+from users.models import User, Subscription
 from ingredients.models import Ingredient
 from recipes.models import Recipe, Tag
 
-from .permissions import RegisterProfileOrAutorised, OnlyGet
+from .permissions import (
+    RegisterProfileOrAutorised,
+    OnlyGet,
+    OnlyGetAutorised,
+)
 from .serializers import (
     UserSerializer,
     UserSignupSerializer,
@@ -16,6 +20,7 @@ from .serializers import (
     IngredientSerializer,
     RecipeSerializer,
     TagSerializer,
+    SubscriptionSerializer,
 )
 
 
@@ -95,3 +100,18 @@ class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     permission_classes = (OnlyGet,)
+
+
+class SubscriptionViewSet(viewsets.ModelViewSet):
+
+    serializer_class = SubscriptionSerializer
+    permission_classes = (OnlyGetAutorised,)
+
+    def get_queryset(self):
+        user = self.request.user
+        followed_people = (
+            Subscription.objects.filter(follower=user).values('follow')
+        )
+        subscription = User.objects.filter(id__in=followed_people)
+
+        return subscription
