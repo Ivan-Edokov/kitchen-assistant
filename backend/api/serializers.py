@@ -1,5 +1,3 @@
-# from dataclasses import fields
-
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -7,7 +5,7 @@ from rest_framework import serializers
 
 from ingredients.models import Ingredient
 from recipes.models import Recipe, RecipeIngredients, Tag
-from users.models import User, Subscription
+from users.models import User
 
 
 MESSAGES = {
@@ -17,38 +15,10 @@ MESSAGES = {
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """Serialiser пользователя"""
-
-    class Meta:
-        model = User
-        fields = (
-            'id',
-            'username',
-            'email',
-            'first_name',
-            'last_name',
-        )
-        lookup_field = 'username'
-
-
-class UserInstanceSerializer(serializers.ModelSerializer):
-    """User Instance Serializer."""
-
-    class Meta:
-        model = User
-        fields = (
-            'id',
-            'username',
-            'email',
-            'first_name',
-            'last_name',
-        )
-        lookup_field = 'username'
-
-
-class UserSignupSerializer(serializers.ModelSerializer):
     """Сериализатор самостоятельной регистрации пользователя.
     Имя 'me' исключено. Проверка пароля."""
+
+    is_subscribed = serializers. SerializerMethodField()
 
     class Meta:
         model = User
@@ -59,6 +29,7 @@ class UserSignupSerializer(serializers.ModelSerializer):
             'first_name',
             'last_name',
             'email',
+            'is_subscribed',
         )
         extra_kwargs = {
             "password": {"write_only": True},
@@ -75,6 +46,16 @@ class UserSignupSerializer(serializers.ModelSerializer):
         except ValidationError as exc:
             raise serializers.ValidationError(str(exc))
         return make_password(value)
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            if (
+                request.user.is_authenticated
+                and request.user.follower(follow=obj).exists()
+            ):
+                return True
+        return False
 
 
 class UserSetPasswordSerializer(serializers.ModelSerializer):
@@ -149,7 +130,7 @@ class TagSerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
     """Сериализер для Рецептов"""
 
-    author = UserInstanceSerializer()
+    author = UserSerializer()
     ingredients = RecipeIngredientsSerializer(
         source='recipe_ingredients', many=True
     )
@@ -188,6 +169,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     """Сериализер для подписки."""
 
     recipes = RecipeShotSerializer(many=True, read_only=True)
+    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -198,4 +180,8 @@ class SubscriptionSerializer(serializers.ModelSerializer):
             'last_name',
             'email',
             'recipes',
+            'is_subscribed',
         )
+
+    def get_is_subscribed(self, obj):
+        return True

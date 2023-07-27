@@ -14,14 +14,20 @@ from .permissions import (
 )
 from .serializers import (
     UserSerializer,
-    UserSignupSerializer,
-    UserInstanceSerializer,
+    # UserSignupSerializer,
+    # UserInstanceSerializer,
     UserSetPasswordSerializer,
     IngredientSerializer,
     RecipeSerializer,
     TagSerializer,
     SubscriptionSerializer,
 )
+
+MESSAGES = {
+    'self_subscription': 'Самостоятельная подписка не допускается.',
+    'double_subscription': 'Двойная подписка не допускается.',
+    'no_subscribed': 'Ошибка отмены подписки, вы не были подписаны.',
+}
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -32,14 +38,14 @@ class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = (RegisterProfileOrAutorised,)
-    lookup_field = 'username'
+    lookup_field = 'id'
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request):
         """Самостоятельная регистрация пользователя.
         Использует UserSignupSerializer.
         """
 
-        serializer = UserSignupSerializer(data=request.data)
+        serializer = UserSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             self.perform_create(serializer)
 
@@ -48,16 +54,11 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer.data, status=status.HTTP_200_OK, headers=headers
         )
 
-    def retrieve(self, request, username=None):
-        """Получение экземпляра пользователя по имени пользователя.
-        Запрос на /me/ возвращает самого пользователя
-        """
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Получение экземпляра пользователя self user."""
 
-        if username == 'me':
-            username = request.user.username
-        user = get_object_or_404(self.queryset, username=username)
-
-        serializer = UserInstanceSerializer(user)
+        serializer = UserSerializer(request.user, context={"request": request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
@@ -72,6 +73,53 @@ class UserViewSet(viewsets.ModelViewSet):
         if serializer.is_valid(raise_exception=True):
             self.perform_update(serializer)
 
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["post"])
+    def set_password(self, request):
+        """Самостоятельная смена пароля.
+        Конечная точка /set_password/."""
+
+        serializer = UserSetPasswordSerializer(
+            request.user, data=request.data, partial=True
+        )
+        if serializer.is_valid(raise_exception=True):
+            self.perform_update(serializer)
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post", "delete"])
+    def subscribe(self, request, id=None):
+        """Подпишитесь на пользователя, если метод POST.
+        Отключена подписка на себя и дубль подписка.
+        Отписаться, если метод DELETE.
+        Отключена отмена подписки, если никто не подписан."""
+
+        if int(id) == request.user.id:
+            return Response(
+                {"detail": MESSAGES["self_subscription"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        follow_user = get_object_or_404(User, id=id)
+        me = get_object_or_404(User, id=request.user.id)
+
+        if request._request.method == "POST":
+            if me.follower.filter(follow=follow_user).exists():
+                return Response(
+                    {"detail": MESSAGES["double_subscription"]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            me.follower.create(follow=follow_user)
+            serializer = SubscriptionSerializer(follow_user)
+            return Response(serializer.data)
+
+        if not me.follower.filter(follow=follow_user).exists():
+            return Response(
+                {"detail": MESSAGES["no_subscribed"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        me.follower.filter(follow=follow_user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -113,5 +161,4 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             Subscription.objects.filter(follower=user).values('follow')
         )
         subscription = User.objects.filter(id__in=followed_people)
-
         return subscription

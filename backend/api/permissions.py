@@ -5,7 +5,8 @@ class RegisterProfileOrAutorised(permissions.BasePermission):
     """Разрешение для пользовательского набора представлений.
     Разрешает Регистрацию нового пользователя
     и доступ к /users/{id} для неавторизованных.
-    Отключите ДОСТУП к /users/me/ для неавторизованных.
+    Отключить ДОСТУП к /users/me/ для неавторизованных.
+    Разрешить ПУБЛИКАЦИЮ и УДАЛЕНИЕ в /subscribe/ для авторизованных.
     """
 
     def has_permission(self, request, view):
@@ -13,7 +14,13 @@ class RegisterProfileOrAutorised(permissions.BasePermission):
         auth_allow_method = ('GET', 'POST')
         return (
             (
-                request.method in auth_allow_method
+                (
+                    request.method in auth_allow_method
+                    or (
+                        view.action == 'subscribe'
+                        and request.method == 'DELETE'
+                    )
+                )
                 and request.user.is_authenticated
                 and view.action != 'create'
             )
