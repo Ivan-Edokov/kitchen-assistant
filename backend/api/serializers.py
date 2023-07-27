@@ -52,7 +52,7 @@ class UserSerializer(serializers.ModelSerializer):
         if request and hasattr(request, 'user'):
             if (
                 request.user.is_authenticated
-                and request.user.follower(follow=obj).exists()
+                and request.user.follower.filter(follow=obj).exists()
             ):
                 return True
         return False

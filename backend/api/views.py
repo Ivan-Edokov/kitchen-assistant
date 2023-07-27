@@ -14,8 +14,6 @@ from .permissions import (
 )
 from .serializers import (
     UserSerializer,
-    # UserSignupSerializer,
-    # UserInstanceSerializer,
     UserSetPasswordSerializer,
     IngredientSerializer,
     RecipeSerializer,
@@ -66,19 +64,6 @@ class UserViewSet(viewsets.ModelViewSet):
         """Самостоятельная смена пароля.
         Endpoint /set_password/.
         """
-
-        serializer = UserSetPasswordSerializer(
-            request.user, data=request.data, partial=True
-        )
-        if serializer.is_valid(raise_exception=True):
-            self.perform_update(serializer)
-
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    @action(detail=False, methods=["post"])
-    def set_password(self, request):
-        """Самостоятельная смена пароля.
-        Конечная точка /set_password/."""
 
         serializer = UserSetPasswordSerializer(
             request.user, data=request.data, partial=True
