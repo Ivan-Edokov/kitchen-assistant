@@ -27,7 +27,11 @@ MESSAGES = {
     'double_subscription': 'Двойная подписка не допускается.',
     'no_subscribed': 'Ошибка отмены подписки, вы не были подписаны.',
     'already_favorite': 'Этот рецепт уже есть в списке избранных.',
-    'not_in_favorite': 'Не удается удалить. Этого рецепта нет в списке избранных.',
+    'not_in_favorite': (
+        'Не удается удалить. Этого рецепта нет в списке избранных.'
+    ),
+    'already_in_card': 'Этот рецепт уже есть в вашей карточке.',
+    'not_in_card': 'Не удается удалить. Этого рецепта нет в вашей карточке.',
 }
 
 
@@ -155,6 +159,35 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         recipe.favorite.remove(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post', 'delete'])
+    def shopping_cart(self, request, pk=None):
+        # http://localhost/api/recipes/{id}/shopping_cart/
+        """Добавите в карточку покупок пользователя рецепт,
+        если используете метод POST.
+        Отключены двойные записи.
+        Удалить рецепт из карточки покупок, если метод DELETE.
+        Отключено удаление, если рецепта нет в карточке покупок."""
+
+        recipe = get_object_or_404(Recipe, pk=pk)
+
+        if request._request.method == 'POST':
+            if recipe.shopping_card.filter(id=request.user.id).exists():
+                return Response(
+                    {'detail': MESSAGES['already_in_card']},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            recipe.shopping_card.add(request.user)
+            serializer = RecipeShotSerializer(recipe)
+            return Response(serializer.data)
+
+        if not recipe.shopping_card.filter(id=request.user.id).exists():
+            return Response(
+                {'detail': MESSAGES['not_in_card']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        recipe.shopping_card.remove(request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
