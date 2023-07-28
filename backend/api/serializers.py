@@ -152,7 +152,7 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 class RecipeShotSerializer(serializers.ModelSerializer):
     """Сериализер для Рецептов.
-    Информация о рецепти для листа подписок
+    Информация о рецепти для листа подписок и избранное.
     """
 
     class Meta:

@@ -19,12 +19,15 @@ from .serializers import (
     RecipeSerializer,
     TagSerializer,
     SubscriptionSerializer,
+    RecipeShotSerializer,
 )
 
 MESSAGES = {
     'self_subscription': 'Самостоятельная подписка не допускается.',
     'double_subscription': 'Двойная подписка не допускается.',
     'no_subscribed': 'Ошибка отмены подписки, вы не были подписаны.',
+    'already_favorite': 'Этот рецепт уже есть в списке избранных.',
+    'not_in_favorite': 'Не удается удалить. Этого рецепта нет в списке избранных.',
 }
 
 
@@ -126,6 +129,33 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     # permission_classes = ()
+
+    @action(detail=True, methods=['post', 'delete'])
+    def favorite(self, request, pk=None):
+        """Добавить любимый рецепт, если пост-метод.
+        Отключены двойные записи.
+        Удалить рецепт из избранного, если метод DELETE.
+        Отключено удаление, если рецепта нет в избранном"""
+
+        recipe = get_object_or_404(Recipe, pk=pk)
+
+        if request._request.method == 'POST':
+            if recipe.favorite.filter(id=request.user.id).exists():
+                return Response(
+                    {'detail': MESSAGES['already_favorite']},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            recipe.favorite.add(request.user)
+            serializer = RecipeShotSerializer(recipe)
+            return Response(serializer.data)
+
+        if not recipe.favorite.filter(id=request.user.id).exists():
+            return Response(
+                {'detail': MESSAGES['not_in_favorite']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        recipe.favorite.remove(request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TagViewSet(viewsets.ModelViewSet):
