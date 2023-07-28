@@ -12,6 +12,7 @@ from .permissions import (
     RegisterProfileOrAutorised,
     OnlyGet,
     OnlyGetAutorised,
+    GetOrGPPDAutorized,
 )
 from .serializers import (
     UserSerializer,
@@ -133,7 +134,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     serializer_class = RecipeSerializer
     filter_backends = (DjangoFilterBackend,)
     filterset_fields = ('tags',)
-    # permission_classes = ()
+    permission_classes = (GetOrGPPDAutorized,)
 
     def add_remove_m2m_relation(
             self, request, model_main, model_mgr, pk, serializer_class
