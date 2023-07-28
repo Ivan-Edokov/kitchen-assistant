@@ -77,11 +77,13 @@ class Recipe(models.Model):
         User,
         verbose_name='Избранное',
         related_name='favorite_recipes',
+        blank=True,
     )
     shopping_card = models.ManyToManyField(
         User,
         verbose_name='В карточку покупок',
         related_name='shopping_recipes',
+        blank=True,
     )
 
     class Meta:
