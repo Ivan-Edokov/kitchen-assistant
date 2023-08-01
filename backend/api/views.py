@@ -29,9 +29,7 @@ MESSAGES = {
     'double_subscription': 'Двойная подписка не допускается.',
     'no_subscribed': 'Ошибка отмены подписки, вы не были подписаны.',
     'relation_already_exists': 'Эта связь уже существует.',
-    'relation_not_exists': (
-        'Не удается удалить. Этой связи не существует.'
-    ),
+    'relation_not_exists': 'Не удается удалить. Этой связи не существует.',
 }
 
 
@@ -140,6 +138,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         request.data['tag_list'] = request.data.pop('tags')
         return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        request.data['tag_list'] = request.data.pop('tags')
+        return super().update(request, *args, **kwargs)
+
+    def perform_update(self, serializer):
+        return super().perform_update(serializer)
 
     def add_remove_m2m_relation(
             self, request, model_main, model_mgr, pk, serializer_class

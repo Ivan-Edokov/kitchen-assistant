@@ -3,7 +3,9 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
-from rest_framework import serializers
+from rest_framework import serializers, status
+
+from .exceptions import CustomApiException
 
 from ingredients.models import Ingredient
 from recipes.models import Recipe, RecipeIngredients, Tag
@@ -13,6 +15,9 @@ from users.models import User
 MESSAGES = {
     'username_invalid': 'Недопустимое имя',
     'current_password_invalid': 'Текущий пароль неверный.',
+    'patch_only_author': (
+        'Обновлять рецепт может только автор или администратор.'
+    )
 }
 
 
@@ -170,13 +175,42 @@ class RecipeSerializer(serializers.ModelSerializer):
                 Ingredient, id=ingrow['ingredient']['id']
             )
             instance.recipe_ingredients.create(
-                ingredient=ingredient, amout=ingrow['amout']
+                ingredient=ingredient, amount=ingrow['amount']
             )
+        tags = list()
         for tagid in tag_list:
-            tag = get_object_or_404(Tag, id=tagid)
-            instance.tags.add(tag)
+            tags.append(get_object_or_404(Tag, id=tagid))
+        instance.tags.set(tags)
 
         return instance
+
+    def update(self, instance, validated_data):
+        if (
+            instance.author != self.context['request'].user
+            and not self.context['request'].user.is_superuser
+        ):
+            raise CustomApiException(
+                {'message': MESSAGES['patch_only_author']},
+                status_code=status.HTTP_403_FORBIDDEN,
+            )
+
+        recipe_ingredients = validated_data.pop('recipe_ingredients')
+        instance.recipe_ingredients.all().delete()
+        for ingrow in recipe_ingredients:
+            ingredient = get_object_or_404(
+                Ingredient, id=ingrow['ingredient']['id']
+            )
+            instance.recipe_ingredients.create(
+                ingredient=ingredient, amount=ingrow['amount']
+            )
+
+        tag_list = validated_data.pop("tag_list")
+        tags = list()
+        for tagid in tag_list:
+            tags.append(get_object_or_404(Tag, id=tagid))
+        instance.tags.set(tags)
+
+        return super().update(instance, validated_data)
 
     def get_is_favorited(self, obj):
         request = self.context.get('request')
