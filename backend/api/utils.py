@@ -18,7 +18,6 @@ def fetch_pdf_resources(uri, rel=None):
         )
     else:
         path = None
-    print(f'>>>{path}<<<')
     return path
 
 

@@ -94,6 +94,10 @@ class Recipe(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def favorite_count(self):
+        return self.favorite.count()
+
 
 class RecipeIngredients(models.Model):
     ingredient = models.ForeignKey(
