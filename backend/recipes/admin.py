@@ -12,10 +12,13 @@ class RecipeTagsInstanceInline(admin.TabularInline):
 
 
 class RecipeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'author')
+    list_display = ('name', 'author', 'favorite_count')
     search_fields = ('name', 'text')
     list_filter = ('author', 'name', 'tags')
     inlines = (RecipeIngredientsInstanceInline,)
+
+    def favorite_count(self, obj):
+        return obj.favorite_count
 
 
 class TagAdmin(admin.ModelAdmin):
