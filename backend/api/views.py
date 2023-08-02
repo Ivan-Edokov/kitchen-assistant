@@ -1,3 +1,5 @@
+import datetime
+
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, status, viewsets
@@ -8,6 +10,7 @@ from users.models import User, Subscription
 from ingredients.models import Ingredient
 from recipes.models import Recipe, Tag
 
+from foodgram import settings
 from .permissions import (
     RegisterProfileOrAutorised,
     OnlyGet,
@@ -23,6 +26,7 @@ from .serializers import (
     SubscriptionSerializer,
     RecipeShotSerializer,
 )
+from .utils import render_to_pdf
 
 MESSAGES = {
     'self_subscription': 'Самостоятельная подписка не допускается.',
@@ -30,6 +34,7 @@ MESSAGES = {
     'no_subscribed': 'Ошибка отмены подписки, вы не были подписаны.',
     'relation_already_exists': 'Эта связь уже существует.',
     'relation_not_exists': 'Не удается удалить. Этой связи не существует.',
+    'pdf_about': 'Приятного аппетита',
 }
 
 
@@ -135,7 +140,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     permission_classes = (GetOrGPPDAutorized,)
 
     def create(self, request, *args, **kwargs):
-
         request.data['tag_list'] = request.data.pop('tags')
         return super().create(request, *args, **kwargs)
 
@@ -200,6 +204,40 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return self.add_remove_m2m_relation(
             request, Recipe, 'shopping_card', pk, RecipeShotSerializer
         )
+
+    @action(detail=False, methods=['get'])
+    def download_shopping_cart(self, request):
+
+        card_ingredients = {}
+        card_recipes = []
+        user_recipes = Recipe.objects.filter(shopping_card=request.user)
+        for recipe in user_recipes:
+            card_recipes.append(recipe.name)
+            recipe_ingredients = recipe.recipe_ingredients.all()
+            for ingredient in recipe_ingredients:
+                if ingredient.ingredient.id in card_ingredients:
+                    amount = (
+                        ingredient.amount
+                        + card_ingredients[ingredient.ingredient.id]['amount']
+                    )
+                else:
+                    amount = ingredient.amount
+                card_ingredients[ingredient.ingredient.id] = {
+                    'name': ingredient.ingredient.name,
+                    'measurement_unit': ingredient.ingredient.measurement_unit,
+                    'amount': amount,
+                }
+        timenow = datetime.datetime.now()
+        time_label = timenow.strftime("%b %d %Y %H:%M:%S")
+        template_card = 'download_shopping_cart.html'
+        context = {
+            'pagesize': settings.PDF_PAGE_SIZE,
+            "card_recipes": card_recipes,
+            "card_ingredients": card_ingredients,
+            "time_label": time_label,
+            "about": MESSAGES["pdf_about"],
+        }
+        return render_to_pdf(template_card, context)
 
 
 class TagViewSet(viewsets.ModelViewSet):
