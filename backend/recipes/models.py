@@ -1,3 +1,4 @@
+from django.utils import timezone
 from colorfield.fields import ColorField
 from django.db import models
 
@@ -85,11 +86,15 @@ class Recipe(models.Model):
         related_name='shopping_recipes',
         blank=True,
     )
+    pub_date = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата публикации',
+    )
 
     class Meta:
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
-        ordering = ['name']
+        ordering = ['-pub_date']
 
     def __str__(self):
         return self.name
