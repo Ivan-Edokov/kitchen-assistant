@@ -1,4 +1,5 @@
-import datetime
+# import datetime
+from django.utils import timezone
 
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -9,6 +10,7 @@ from rest_framework.response import Response
 from users.models import User, Subscription
 from ingredients.models import Ingredient
 from recipes.models import Recipe, Tag
+from .filters import RecipesFilter
 
 from foodgram import settings
 from .permissions import (
@@ -136,7 +138,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     filter_backends = (DjangoFilterBackend,)
-    filterset_fields = ('tags',)
+    filterset_class = RecipesFilter
     permission_classes = (GetOrGPPDAutorized,)
 
     def create(self, request, *args, **kwargs):
@@ -227,7 +229,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     'measurement_unit': ingredient.ingredient.measurement_unit,
                     'amount': amount,
                 }
-        timenow = datetime.datetime.now()
+        # timenow = datetime.datetime.now()
+        timenow = timezone.now()
         time_label = timenow.strftime("%b %d %Y %H:%M:%S")
         template_card = 'download_shopping_cart.html'
         context = {
