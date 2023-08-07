@@ -1,24 +1,48 @@
 import csv
+import os
 
-import django.db.utils
+from dotenv import load_dotenv
+
+# import django.db.utils
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
-from ingredients.models import Ingredient
+from recipes.models import Ingredient, Tag
+
+
+load_dotenv()
+
+USER = get_user_model()
 
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
 
-        with open(
-            '../data/ingredients.csv', 'r', encoding='utf-8'
-        ) as csvfile:
-            freader = csv.DictReader(
-                csvfile, fieldnames=['name', 'measurement_unit']
+        self.csvform(
+            'data/tags.csv',
+            Tag,
+            ['name', 'color', 'slug'],
+        )
+        self.csvform(
+            'data/ingredients.csv',
+            Ingredient,
+            ['name', 'measurement_unit'],
+        )
+
+        try:
+            USER.objects.create_superuser(
+                os.getenv('ADMIN_LOGIN', default=None),
+                os.getenv('ADMIN_EMAIL', default=None),
+                os.getenv('ADMIN_PAS', default=None),
             )
+        except Exception:
+            pass
+
+    def csvform(self, file, model, head):
+        with open(file, 'r', encoding='utf-8') as csvfile:
+            freader = csv.DictReader(csvfile, fieldnames=head)
             for row in freader:
                 try:
-                    Ingredient.objects.get_or_create(
-                        name=row['name'],
-                        measurement_unit=row["measurement_unit"],
-                    )
-                except django.db.utils.IntegrityError:
+                    data = {h: row[h] for h in head}
+                    model.objects.get_or_create(**data)
+                except Exception:
                     continue
