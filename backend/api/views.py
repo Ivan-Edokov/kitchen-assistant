@@ -3,10 +3,11 @@ from django.utils import timezone
 
 from django.shortcuts import get_object_or_404
 from django.db.models import OuterRef, Prefetch, Subquery
-from rest_framework import filters, status, viewsets
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from .filters import IngredientSearchFilter
 from users.models import User, Subscription
 from ingredients.models import Ingredient
 from recipes.models import Recipe, Tag
@@ -127,7 +128,7 @@ class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     permission_classes = (OnlyGet,)
-    filter_backends = (filters.SearchFilter,)
+    filter_backends = (IngredientSearchFilter,)
     search_fields = ('^name',)
     pagination_class = None
 
