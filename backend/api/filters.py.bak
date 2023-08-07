@@ -7,7 +7,7 @@ class RecipesFilter(rest_framework.FilterSet):
 
     tags = rest_framework.CharFilter(
         field_name='tags__slug',
-        lookup_expr='icontains'
+        # lookup_expr='icontains'
     )
 
     class Meta:
