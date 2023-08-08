@@ -5,12 +5,11 @@ from django.shortcuts import get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers, status
 
-from .exceptions import CustomApiException
-
 from ingredients.models import Ingredient
 from recipes.models import Recipe, RecipeIngredients, Tag
 from users.models import User
 
+from .exceptions import CustomApiException
 
 MESSAGES = {
     'username_invalid': 'Недопустимое имя',
@@ -180,11 +179,9 @@ class RecipeSerializer(serializers.ModelSerializer):
             instance.recipe_ingredients.create(
                 ingredient=ingredient, amount=ingrow['amount']
             )
-        # tags = list()
         for tagid in tag_list:
             tag = get_object_or_404(Tag, id=tagid)
             instance.tags.add(tag)
-            # instance.tags.set(tag)
 
         return instance
 

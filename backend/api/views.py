@@ -1,37 +1,25 @@
-# import datetime
-from django.utils import timezone
-
-from django.shortcuts import get_object_or_404
 from django.db.models import OuterRef, Prefetch, Subquery
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
-
-from .filters import IngredientSearchFilter
-from users.models import User, Subscription
-from ingredients.models import Ingredient
-from recipes.models import Recipe, Tag
+from rest_framework.response import Response\
 
 from foodgram import settings
-from .permissions import (
-    RegisterProfileOrAutorised,
-    OnlyGet,
-    OnlyGetAutorised,
-    GetOrGPPDAutorized,
-)
-from .serializers import (
-    UserSerializer,
-    UserSetPasswordSerializer,
-    IngredientSerializer,
-    RecipeSerializer,
-    TagSerializer,
-    SubscriptionSerializer,
-    RecipeShotSerializer,
-)
+from users.models import Subscription, User
+from ingredients.models import Ingredient
+from recipes.models import Recipe, Tag
+from .filters import IngredientSearchFilter
+from .permissions import (GetOrGPPDAutorized, OnlyGet, OnlyGetAutorised,
+                          RegisterProfileOrAutorised)
+from .serializers import (IngredientSerializer, RecipeSerializer,
+                          RecipeShotSerializer, SubscriptionSerializer,
+                          TagSerializer, UserSerializer,
+                          UserSetPasswordSerializer)
 from .utils import render_to_pdf
 
 MESSAGES = {
-    'self_subscription': 'Самостоятельная подписка не допускается.',
+    'self_subscription': 'Подписка на себя не допускается.',
     'double_subscription': 'Двойная подписка не допускается.',
     'no_subscribed': 'Ошибка отмены подписки, вы не были подписаны.',
     'relation_already_exists': 'Эта связь уже существует.',
@@ -88,7 +76,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post", "delete"])
     def subscribe(self, request, id=None):
         """Подпишитесь на пользователя, если метод POST.
-        Отключена подписка на себя и дубль подписка.
+        Отключена подписка на себя и дубль подписки.
         Отписаться, если метод DELETE.
         Отключена отмена подписки, если никто не подписан."""
 
@@ -136,7 +124,6 @@ class IngredientViewSet(viewsets.ModelViewSet):
 class RecipeViewSet(viewsets.ModelViewSet):
     """ВьюСет для Рецептов"""
 
-    # queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     permission_classes = (GetOrGPPDAutorized,)
 
@@ -249,7 +236,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     'measurement_unit': ingredient.ingredient.measurement_unit,
                     'amount': amount,
                 }
-        # timenow = datetime.datetime.now()
         timenow = timezone.now()
         time_label = timenow.strftime("%b %d %Y %H:%M:%S")
         template_card = 'download_shopping_cart.html'

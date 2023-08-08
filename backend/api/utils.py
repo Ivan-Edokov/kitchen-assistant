@@ -1,9 +1,9 @@
 import os
 from io import BytesIO
 
-from foodgram import settings
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.template.loader import get_template
+from foodgram import settings
 from xhtml2pdf import pisa
 
 

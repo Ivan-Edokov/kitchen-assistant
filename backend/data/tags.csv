@@ -1,6 +1,6 @@
-Завтрак,#00FFFFb,reakfast
+Завтрак,##FFFF00,reakfast
 Обед,#000000,lunch
 Ужин,#0000FF,dinner
 Закуски,#FF00FF,snack
-Напитки,#808080,drinks
+Напитки,#00BFFF,drinks
 Десерт,#00FF00,dessert
