@@ -23,6 +23,5 @@ jobs:
     - name: Test wich flake8 and django test
       run: |
         python -m flake8 backend/
-        pytest
         cd backend/ python manage.py test
         python manage.py test
