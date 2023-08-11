@@ -1,15 +1,7 @@
-from django_filters import rest_framework
-from recipes.models import Recipe
+from rest_framework.filters import SearchFilter
 
 
-class RecipesFilter(rest_framework.FilterSet):
-    """Фильтр для вьюсета TitleViewSet"""
+class IngredientSearchFilter(SearchFilter):
+    """Фильтр для Ингредиентов"""
 
-    tags = rest_framework.CharFilter(
-        field_name='tags__slug',
-        lookup_expr='icontains'
-    )
-
-    class Meta:
-        model = Recipe
-        fields = ['tags']
+    search_param = 'name'

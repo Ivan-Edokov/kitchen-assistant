@@ -5,12 +5,11 @@ from django.shortcuts import get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers, status
 
-from .exceptions import CustomApiException
-
 from ingredients.models import Ingredient
 from recipes.models import Recipe, RecipeIngredients, Tag
 from users.models import User
 
+from .exceptions import CustomApiException
 
 MESSAGES = {
     'username_invalid': 'Недопустимое имя',
@@ -143,7 +142,10 @@ class RecipeSerializer(serializers.ModelSerializer):
         many=True
     )
     tags = TagSerializer(many=True, read_only=True)
-    tag_list = serializers.ListField(write_only=True)
+    tag_list = serializers.ListField(
+        write_only=True,
+        child=serializers.IntegerField(min_value=1)
+    )
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
     image = Base64ImageField()
@@ -177,10 +179,9 @@ class RecipeSerializer(serializers.ModelSerializer):
             instance.recipe_ingredients.create(
                 ingredient=ingredient, amount=ingrow['amount']
             )
-        tags = list()
         for tagid in tag_list:
-            tags.append(get_object_or_404(Tag, id=tagid))
-        instance.tags.set(tags)
+            tag = get_object_or_404(Tag, id=tagid)
+            instance.tags.add(tag)
 
         return instance
 
@@ -272,4 +273,4 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         return True
 
     def get_recipes_count(self, obj):
-        return obj.recipes.count()
+        return User.objects.get(id=obj.id).recipes.count()

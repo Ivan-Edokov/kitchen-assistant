@@ -1,37 +1,25 @@
-# import datetime
-from django.utils import timezone
-
+from django.db.models import OuterRef, Prefetch, Subquery
 from django.shortcuts import get_object_or_404
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters, status, viewsets
+from django.utils import timezone
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response
-
-from users.models import User, Subscription
-from ingredients.models import Ingredient
-from recipes.models import Recipe, Tag
-from .filters import RecipesFilter
+from rest_framework.response import Response\
 
 from foodgram import settings
-from .permissions import (
-    RegisterProfileOrAutorised,
-    OnlyGet,
-    OnlyGetAutorised,
-    GetOrGPPDAutorized,
-)
-from .serializers import (
-    UserSerializer,
-    UserSetPasswordSerializer,
-    IngredientSerializer,
-    RecipeSerializer,
-    TagSerializer,
-    SubscriptionSerializer,
-    RecipeShotSerializer,
-)
+from users.models import Subscription, User
+from ingredients.models import Ingredient
+from recipes.models import Recipe, Tag
+from .filters import IngredientSearchFilter
+from .permissions import (GetOrGPPDAutorized, OnlyGet, OnlyGetAutorised,
+                          RegisterProfileOrAutorised)
+from .serializers import (IngredientSerializer, RecipeSerializer,
+                          RecipeShotSerializer, SubscriptionSerializer,
+                          TagSerializer, UserSerializer,
+                          UserSetPasswordSerializer)
 from .utils import render_to_pdf
 
 MESSAGES = {
-    'self_subscription': 'Самостоятельная подписка не допускается.',
+    'self_subscription': 'Подписка на себя не допускается.',
     'double_subscription': 'Двойная подписка не допускается.',
     'no_subscribed': 'Ошибка отмены подписки, вы не были подписаны.',
     'relation_already_exists': 'Эта связь уже существует.',
@@ -88,7 +76,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post", "delete"])
     def subscribe(self, request, id=None):
         """Подпишитесь на пользователя, если метод POST.
-        Отключена подписка на себя и дубль подписка.
+        Отключена подписка на себя и дубль подписки.
         Отписаться, если метод DELETE.
         Отключена отмена подписки, если никто не подписан."""
 
@@ -128,18 +116,40 @@ class IngredientViewSet(viewsets.ModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     permission_classes = (OnlyGet,)
-    filter_backends = (filters.SearchFilter,)
+    filter_backends = (IngredientSearchFilter,)
     search_fields = ('^name',)
+    pagination_class = None
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
     """ВьюСет для Рецептов"""
 
-    queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
-    filter_backends = (DjangoFilterBackend,)
-    filterset_class = RecipesFilter
     permission_classes = (GetOrGPPDAutorized,)
+
+    def get_queryset(self):
+
+        queryset = Recipe.objects.all()
+        tag_list = self.request.GET.getlist('tags')
+        if tag_list:
+            queryset = queryset.filter(tags__slug__in=tag_list).distinct()
+
+        author = self.request.GET.get("author")
+        if author:
+            queryset = queryset.filter(author__id=author)
+
+        if not self.request.user.is_authenticated:
+            return queryset
+
+        is_in_shopping_cart = self.request.GET.get("is_in_shopping_cart")
+        if is_in_shopping_cart:
+            queryset = queryset.filter(shopping_card=self.request.user)
+
+        is_favorited = self.request.GET.get("is_favorited")
+        if is_favorited:
+            queryset = queryset.filter(favorite=self.request.user)
+
+        return queryset
 
     def create(self, request, *args, **kwargs):
         request.data['tag_list'] = request.data.pop('tags')
@@ -149,17 +159,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
         request.data['tag_list'] = request.data.pop('tags')
         return super().update(request, *args, **kwargs)
 
-    def perform_update(self, serializer):
-        return super().perform_update(serializer)
-
     def add_remove_m2m_relation(
             self, request, model_main, model_mgr, pk, serializer_class
     ):
-        """Добавьте отношение "многие ко многим" к пользовательской модели,
+        """Добавить отношение "многие ко многим" к пользовательской модели,
         если метод POST.
-        Отключены двойные записи. Отключены двойные записи.
-        Удалите рецепт из избранного, если метод УДАЛЕН.
-        Удалите отношение "многие ко многим", если метод DELETE.
+        Отключены двойные записи.
+        Удалить рецепт из избранного, если метод УДАЛЕН.
+        Удалить отношение "многие ко многим", если метод DELETE.
         Отключено удаление, если рецепта нет в избранном.
         Отключено удаление, если связь не существует."""
 
@@ -229,7 +236,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
                     'measurement_unit': ingredient.ingredient.measurement_unit,
                     'amount': amount,
                 }
-        # timenow = datetime.datetime.now()
         timenow = timezone.now()
         time_label = timenow.strftime("%b %d %Y %H:%M:%S")
         template_card = 'download_shopping_cart.html'
@@ -248,6 +254,7 @@ class TagViewSet(viewsets.ModelViewSet):
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
     permission_classes = (OnlyGet,)
+    pagination_class = None
 
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
@@ -261,4 +268,18 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             Subscription.objects.filter(follower=user).values('follow')
         )
         subscription = User.objects.filter(id__in=followed_people)
+        recipes_limit = int(self.request.GET.get("recipes_limit"))
+        if recipes_limit:
+            subqry = Subquery(
+                Recipe.objects.filter(author=OuterRef("author")).values_list(
+                    "id", flat=True
+                )[:recipes_limit]
+            )
+
+            subscription = subscription.prefetch_related(
+                Prefetch(
+                    "recipes", queryset=Recipe.objects.filter(id__in=subqry)
+                )
+            )
+
         return subscription
