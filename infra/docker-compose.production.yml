@@ -12,6 +12,7 @@ services:
     # build:
     #   context: ../frontend
     #   dockerfile: Dockerfile
+    # это новая строка
     volumes:
       - ../frontend/:/app/result_build/
 
