@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <title>Список покупок</title>
+        <style type="text/css">
+            @font-face { 
+                font-family: Arial; src: url("/media/font/arial.ttf"); 
+            }
+            body{
+                font-family: Arial;
+            }
+            @page {
+                size: {{ pagesize }};
+                margin: 1cm;
+                @frame footer {
+                    -pdf-frame-content: footerContent;
+                    bottom: 0cm;
+                    margin-left: 5cm;
+                    height: 1cm;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <h2>Список покупок на {{ time_label }}</h2>
+        <h4>Для приготовления:</h4>
+        <ul>
+            {% for recipe in card_recipes %}
+                <li>{{ recipe }}</li>
+            {% endfor %}
+        </ul>
+        <h4>Необходимые ингредиенты:</h4>
+        <ul>
+            {% for iid, ingredient in card_ingredients.items %}
+                <li>
+                    {{ ingredient.name }} ({{ ingredient.measurement_unit }}) : 
+                    {{ ingredient.amount }}
+                </li>
+            {% endfor %}
+        </ul>
+
+         <div id="footerContent">
+            <p>{{ about }}</p>
+        </div>
+    </body>
+</html>
