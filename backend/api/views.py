@@ -3,15 +3,15 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.response import Response\
+from rest_framework import permissions
+from rest_framework.response import Response
 
 from foodgram import settings
 from users.models import Subscription, User
 from ingredients.models import Ingredient
 from recipes.models import Recipe, Tag
 from .filters import IngredientSearchFilter
-from .permissions import (GetOrGPPDAutorized, OnlyGet, OnlyGetAutorised,
-                          RegisterProfileOrAutorised)
+from .permissions import AuthorOrReadOnly
 from .serializers import (IngredientSerializer, RecipeSerializer,
                           RecipeShotSerializer, SubscriptionSerializer,
                           TagSerializer, UserSerializer,
@@ -35,7 +35,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    permission_classes = (RegisterProfileOrAutorised,)
+    permission_classes = (permissions.AllowAny,)
     lookup_field = 'id'
 
     def create(self, request):
@@ -44,22 +44,27 @@ class UserViewSet(viewsets.ModelViewSet):
         """
 
         serializer = UserSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            self.perform_create(serializer)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
 
         headers = self.get_success_headers(serializer.data)
         return Response(
             serializer.data, status=status.HTTP_200_OK, headers=headers
         )
 
-    @action(detail=False, methods=['get'])
+    @action(
+        detail=False, methods=['get'],
+        permission_classes=(permissions.IsAuthenticated,)
+    )
     def me(self, request):
         """Получение экземпляра пользователя self user."""
 
         serializer = UserSerializer(request.user, context={"request": request})
         return Response(serializer.data)
 
-    @action(detail=False, methods=['post'])
+    @action(
+        detail=False, methods=['post'],
+        permission_classes=(permissions.IsAuthenticated,))
     def set_password(self, request):
         """Самостоятельная смена пароля.
         Endpoint /set_password/.
@@ -68,12 +73,14 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer = UserSetPasswordSerializer(
             request.user, data=request.data, partial=True
         )
-        if serializer.is_valid(raise_exception=True):
-            self.perform_update(serializer)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    @action(detail=True, methods=["post", "delete"])
+    @action(
+        detail=True, methods=["post", "delete"],
+        permission_classes=(permissions.IsAuthenticated,))
     def subscribe(self, request, id=None):
         """Подпишитесь на пользователя, если метод POST.
         Отключена подписка на себя и дубль подписки.
@@ -115,7 +122,7 @@ class IngredientViewSet(viewsets.ModelViewSet):
 
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    permission_classes = (OnlyGet,)
+    # permission_classes = (permissions.AllowAny,)
     filter_backends = (IngredientSearchFilter,)
     search_fields = ('^name',)
     pagination_class = None
@@ -125,7 +132,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     """ВьюСет для Рецептов"""
 
     serializer_class = RecipeSerializer
-    permission_classes = (GetOrGPPDAutorized,)
+    permission_classes = (AuthorOrReadOnly,)
 
     def get_queryset(self):
 
@@ -151,13 +158,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         return queryset
 
-    def create(self, request, *args, **kwargs):
-        request.data['tag_list'] = request.data.pop('tags')
-        return super().create(request, *args, **kwargs)
+#    def create(self, request, *args, **kwargs):
+#        request.data['tag_list'] = request.data.pop('tags')
+#        return super().create(request, *args, **kwargs)
 
-    def update(self, request, *args, **kwargs):
-        request.data['tag_list'] = request.data.pop('tags')
-        return super().update(request, *args, **kwargs)
+#    def update(self, request, *args, **kwargs):
+#        request.data['tag_list'] = request.data.pop('tags')
+#        return super().update(request, *args, **kwargs)
 
     def add_remove_m2m_relation(
             self, request, model_main, model_mgr, pk, serializer_class
@@ -214,7 +221,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
             request, Recipe, 'shopping_card', pk, RecipeShotSerializer
         )
 
-    @action(detail=False, methods=['get'])
+    @action(
+        detail=False, methods=['get'],
+        permission_classes=(AuthorOrReadOnly,))
     def download_shopping_cart(self, request):
 
         card_ingredients = {}
@@ -253,14 +262,14 @@ class TagViewSet(viewsets.ModelViewSet):
     """ВьюСет для Тегов"""
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
-    permission_classes = (OnlyGet,)
+    # permission_classes = (permissions.AllowAny,)
     pagination_class = None
 
 
 class SubscriptionViewSet(viewsets.ModelViewSet):
 
     serializer_class = SubscriptionSerializer
-    permission_classes = (OnlyGetAutorised,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     def get_queryset(self):
         user = self.request.user

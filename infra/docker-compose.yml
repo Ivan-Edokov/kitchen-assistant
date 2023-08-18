@@ -8,10 +8,10 @@ volumes:
 services:
 
   frontend:
-    image: serg163/foogram_frontend
-    # build:
-    #   context: ../frontend
-    #   dockerfile: Dockerfile
+    # image: serg163/foogram_frontend
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
     volumes:
       - ../frontend/:/app/result_build/
 
@@ -22,10 +22,10 @@ services:
       - pg_data:/var/lib/postgresql/data
   
   backend:
-    image: serg163/foogram_backend
-    # build: 
-    #   context: ../backend/
-    #   dockerfile: Dockerfile
+    # image: serg163/foogram_backend
+    build: 
+      context: ../backend/
+      dockerfile: Dockerfile
     env_file:
       - ../.env
     volumes:
