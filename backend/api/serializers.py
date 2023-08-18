@@ -137,10 +137,6 @@ class RecipeSerializer(serializers.ModelSerializer):
         many=True
     )
     tags = TagSerializer(many=True, read_only=True)
-    # tag_list = serializers.ListField(
-    #     write_only=True,
-    #     child=serializers.IntegerField(min_value=1)
-    # )
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
     image = Base64ImageField()
@@ -156,7 +152,6 @@ class RecipeSerializer(serializers.ModelSerializer):
             'author',
             'ingredients',
             'tags',
-            #'tag_list',
             'is_favorited',
             'is_in_shopping_cart',
         )
@@ -185,7 +180,7 @@ class RecipeSerializer(serializers.ModelSerializer):
 
         validated_data['author'] = self.context['request'].user
         recipe_ingredients = validated_data.pop('recipe_ingredients')
-        tag_list = validated_data.pop('tag_list')
+        tag_list = self.initial_data['tags']
         instance = Recipe.objects.create(**validated_data)
         instance.tags.set(tag_list)
         self.create_ingredients_tags(instance, recipe_ingredients, tag_list)
@@ -194,7 +189,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
 
         recipe_ingredients = validated_data.pop('recipe_ingredients')
-        tag_list = validated_data.pop('tag_list')
+        tag_list = self.initial_data['tags']
         instance.recipe_ingredients.all().delete()
         self.create_ingredients_tags(instance, recipe_ingredients, tag_list)
         return super().update(instance, validated_data)

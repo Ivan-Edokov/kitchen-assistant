@@ -158,14 +158,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         return queryset
 
-#    def create(self, request, *args, **kwargs):
-#        request.data['tag_list'] = request.data.pop('tags')
-#        return super().create(request, *args, **kwargs)
-
-#    def update(self, request, *args, **kwargs):
-#        request.data['tag_list'] = request.data.pop('tags')
-#        return super().update(request, *args, **kwargs)
-
     def add_remove_m2m_relation(
             self, request, model_main, model_mgr, pk, serializer_class
     ):
