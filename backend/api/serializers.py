@@ -142,10 +142,14 @@ class RecipeSerializer(serializers.ModelSerializer):
         many=True
     )
     tags = TagSerializer(many=True, read_only=True)
-    tag_list = serializers.ListField(
-        write_only=True,
-        child=serializers.IntegerField(min_value=1)
-    )
+    # tags = serializers.PrimaryKeyRelatedField(
+#        many=True,
+ #       queryset=Tag.objects.all()
+  #  )
+#    tag_list = serializers.ListField(
+ #       write_only=True,
+   #     child=serializers.IntegerField(min_value=1)
+    #)
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
     image = Base64ImageField()
@@ -161,28 +165,45 @@ class RecipeSerializer(serializers.ModelSerializer):
             'author',
             'ingredients',
             'tags',
-            'tag_list',
+            #'tag_list',
             'is_favorited',
             'is_in_shopping_cart',
         )
 
+    def validate(self, data):
+
+        unic_ingredients = dict()
+        for ingredient in data['recipe_ingredients']:
+            if ingredient['ingredient']['id'] in unic_ingredients:
+                raise serializers.ValidationError(MESSAGES['ingredients_unic'])
+            unic_ingredients[ingredient['ingredient']['id']] = True
+        return data
+
+    def create_ingredients_tags(self, instance, ingredients, tags):
+        RecipeIngredients.objects.bulk_create(
+            [RecipeIngredients(
+                ingredient=Ingredient.objects.get(
+                    id=ingrow.get('ingredient')['id']),
+                recipe=instance,
+                amount=ingrow.get('amount')
+            ) for ingrow in ingredients]
+        )
+        instance.tags.set(tags)
+
     def create(self, validated_data):
 
+        print(f"{validated_data}")
+        
+        tag_list = self.initial_data['tags']
+        print(f"{tag_list}")
         validated_data['author'] = self.context['request'].user
         recipe_ingredients = validated_data.pop('recipe_ingredients')
-        tag_list = validated_data.pop('tag_list')
+        # tag_list = validated_data.pop('tag_list')
+        # tag_list = validated_data.pop('tag_list')
         instance = Recipe.objects.create(**validated_data)
-        for ingrow in recipe_ingredients:
-            ingredient = get_object_or_404(
-                Ingredient, id=ingrow['ingredient']['id']
-            )
-            instance.recipe_ingredients.create(
-                ingredient=ingredient, amount=ingrow['amount']
-            )
-        for tagid in tag_list:
-            tag = get_object_or_404(Tag, id=tagid)
-            instance.tags.add(tag)
-
+        # tags_1 = instance.tags.set(tags)
+        instance.tags.set(tag_list)
+        self.create_ingredients_tags(instance, recipe_ingredients, tag_list)
         return instance
 
     def update(self, instance, validated_data):

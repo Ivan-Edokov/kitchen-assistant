@@ -131,6 +131,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         queryset = Recipe.objects.all()
         tag_list = self.request.GET.getlist('tags')
+        print(f">>>{tag_list}>>>")
         if tag_list:
             queryset = queryset.filter(tags__slug__in=tag_list).distinct()
 
@@ -148,12 +149,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
         is_favorited = self.request.GET.get("is_favorited")
         if is_favorited:
             queryset = queryset.filter(favorite=self.request.user)
-
+        print(f"{queryset}")
         return queryset
 
-    def create(self, request, *args, **kwargs):
-        request.data['tag_list'] = request.data.pop('tags')
-        return super().create(request, *args, **kwargs)
+#    def create(self, request, *args, **kwargs):
+ #       request.data['tag_list'] = request.data.pop('tags')
+  #      print(f"{request.data['tag_list']}")
+   #     return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
         request.data['tag_list'] = request.data.pop('tags')
