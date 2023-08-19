@@ -1,22 +1,17 @@
 from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.shortcuts import get_object_or_404
 from drf_extra_fields.fields import Base64ImageField
-from rest_framework import serializers, status
+from rest_framework import serializers
 
 from ingredients.models import Ingredient
-from recipes.models import Recipe, RecipeIngredients, Tag
+from recipes.models import Recipe, RecipeIngredient, Tag
 from users.models import User
-
-from .exceptions import CustomApiException
 
 MESSAGES = {
     'username_invalid': 'Недопустимое имя',
     'current_password_invalid': 'Текущий пароль неверный.',
-    'patch_only_author': (
-        'Обновлять рецепт может только автор или администратор.'
-    )
+    'ingredients_unic': 'Невозможно добавить одинаковый ингредиент'
 }
 
 
@@ -38,7 +33,7 @@ class UserSerializer(serializers.ModelSerializer):
             'is_subscribed',
         )
         extra_kwargs = {
-            "password": {"write_only": True},
+            'password': {'write_only': True},
         }
 
     def validate_username(self, value):
@@ -116,12 +111,12 @@ class RecipeIngredientsSerializer(serializers.HyperlinkedModelSerializer):
     )
 
     class Meta:
-        model = RecipeIngredients
+        model = RecipeIngredient
         fields = (
-            "id",
-            "name",
-            "measurement_unit",
-            "amount",
+            'id',
+            'name',
+            'measurement_unit',
+            'amount',
         )
 
 
@@ -142,10 +137,6 @@ class RecipeSerializer(serializers.ModelSerializer):
         many=True
     )
     tags = TagSerializer(many=True, read_only=True)
-    tag_list = serializers.ListField(
-        write_only=True,
-        child=serializers.IntegerField(min_value=1)
-    )
     is_favorited = serializers.SerializerMethodField()
     is_in_shopping_cart = serializers.SerializerMethodField()
     image = Base64ImageField()
@@ -161,56 +152,46 @@ class RecipeSerializer(serializers.ModelSerializer):
             'author',
             'ingredients',
             'tags',
-            'tag_list',
             'is_favorited',
             'is_in_shopping_cart',
         )
+
+    def validate(self, data):
+
+        unic_ingredients = dict()
+        for ingredient in data['recipe_ingredients']:
+            if ingredient['ingredient']['id'] in unic_ingredients:
+                raise serializers.ValidationError(MESSAGES['ingredients_unic'])
+            unic_ingredients[ingredient['ingredient']['id']] = True
+        return data
+
+    def create_ingredients_tags(self, instance, ingredients, tags):
+        RecipeIngredient.objects.bulk_create(
+            [RecipeIngredient(
+                ingredient=Ingredient.objects.get(
+                    id=ingrow.get('ingredient')['id']),
+                recipe=instance,
+                amount=ingrow.get('amount')
+            ) for ingrow in ingredients]
+        )
+        instance.tags.set(tags)
 
     def create(self, validated_data):
 
         validated_data['author'] = self.context['request'].user
         recipe_ingredients = validated_data.pop('recipe_ingredients')
-        tag_list = validated_data.pop('tag_list')
+        tag_list = self.initial_data['tags']
         instance = Recipe.objects.create(**validated_data)
-        for ingrow in recipe_ingredients:
-            ingredient = get_object_or_404(
-                Ingredient, id=ingrow['ingredient']['id']
-            )
-            instance.recipe_ingredients.create(
-                ingredient=ingredient, amount=ingrow['amount']
-            )
-        for tagid in tag_list:
-            tag = get_object_or_404(Tag, id=tagid)
-            instance.tags.add(tag)
-
+        instance.tags.set(tag_list)
+        self.create_ingredients_tags(instance, recipe_ingredients, tag_list)
         return instance
 
     def update(self, instance, validated_data):
-        if (
-            instance.author != self.context['request'].user
-            and not self.context['request'].user.is_superuser
-        ):
-            raise CustomApiException(
-                {'message': MESSAGES['patch_only_author']},
-                status_code=status.HTTP_403_FORBIDDEN,
-            )
 
         recipe_ingredients = validated_data.pop('recipe_ingredients')
+        tag_list = self.initial_data['tags']
         instance.recipe_ingredients.all().delete()
-        for ingrow in recipe_ingredients:
-            ingredient = get_object_or_404(
-                Ingredient, id=ingrow['ingredient']['id']
-            )
-            instance.recipe_ingredients.create(
-                ingredient=ingredient, amount=ingrow['amount']
-            )
-
-        tag_list = validated_data.pop("tag_list")
-        tags = list()
-        for tagid in tag_list:
-            tags.append(get_object_or_404(Tag, id=tagid))
-        instance.tags.set(tags)
-
+        self.create_ingredients_tags(instance, recipe_ingredients, tag_list)
         return super().update(instance, validated_data)
 
     def get_is_favorited(self, obj):
@@ -270,7 +251,14 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         )
 
     def get_is_subscribed(self, obj):
-        return True
+
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            return (
+                request.user.is_authenticated
+                and request.user.follower.filter(follow=obj).exists()
+            )
+        return False
 
     def get_recipes_count(self, obj):
         return User.objects.get(id=obj.id).recipes.count()

@@ -3,8 +3,9 @@ from io import BytesIO
 
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.template.loader import get_template
-from foodgram import settings
 from xhtml2pdf import pisa
+
+from foodgram import settings
 
 
 def fetch_pdf_resources(uri, rel=None):
