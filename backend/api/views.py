@@ -1,4 +1,4 @@
-from django.db.models import OuterRef, Prefetch, Subquery
+from django.db.models import OuterRef, Prefetch, Subquery, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from foodgram import settings
 from users.models import Subscription, User
 from ingredients.models import Ingredient
-from recipes.models import Recipe, Tag
+from recipes.models import Recipe, Tag, RecipeIngredient
 from .filters import IngredientSearchFilter
 from .permissions import AuthorOrReadOnly
 from .serializers import (IngredientSerializer, RecipeSerializer,
@@ -59,7 +59,7 @@ class UserViewSet(viewsets.ModelViewSet):
     def me(self, request):
         """Получение экземпляра пользователя self user."""
 
-        serializer = UserSerializer(request.user, context={"request": request})
+        serializer = UserSerializer(request.user, context={'request': request})
         return Response(serializer.data)
 
     @action(
@@ -79,7 +79,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
-        detail=True, methods=["post", "delete"],
+        detail=True, methods=['post', 'delete'],
         permission_classes=(permissions.IsAuthenticated,))
     def subscribe(self, request, id=None):
         """Подпишитесь на пользователя, если метод POST.
@@ -89,29 +89,30 @@ class UserViewSet(viewsets.ModelViewSet):
 
         if int(id) == request.user.id:
             return Response(
-                {"detail": MESSAGES["self_subscription"]},
+                {'detail': MESSAGES['self_subscription']},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         follow_user = get_object_or_404(User, id=id)
         me = get_object_or_404(User, id=request.user.id)
+        subscribe_queryset = me.follower.filter(follow=follow_user)
 
-        if request._request.method == "POST":
-            if me.follower.filter(follow=follow_user).exists():
+        if request._request.method == 'POST':
+            if subscribe_queryset.exists():
                 return Response(
-                    {"detail": MESSAGES["double_subscription"]},
+                    {'detail': MESSAGES['double_subscription']},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             me.follower.create(follow=follow_user)
             serializer = SubscriptionSerializer(follow_user)
             return Response(serializer.data)
 
-        if not me.follower.filter(follow=follow_user).exists():
+        if not subscribe_queryset.exists():
             return Response(
-                {"detail": MESSAGES["no_subscribed"]},
+                {'detail': MESSAGES['no_subscribed']},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        me.follower.filter(follow=follow_user).delete()
+        subscribe_queryset.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -122,7 +123,6 @@ class IngredientViewSet(viewsets.ModelViewSet):
 
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
-    # permission_classes = (permissions.AllowAny,)
     filter_backends = (IngredientSearchFilter,)
     search_fields = ('^name',)
     pagination_class = None
@@ -141,18 +141,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if tag_list:
             queryset = queryset.filter(tags__slug__in=tag_list).distinct()
 
-        author = self.request.GET.get("author")
+        author = self.request.GET.get('author')
         if author:
             queryset = queryset.filter(author__id=author)
 
         if not self.request.user.is_authenticated:
             return queryset
 
-        is_in_shopping_cart = self.request.GET.get("is_in_shopping_cart")
+        is_in_shopping_cart = self.request.GET.get('is_in_shopping_cart')
         if is_in_shopping_cart:
             queryset = queryset.filter(shopping_card=self.request.user)
 
-        is_favorited = self.request.GET.get("is_favorited")
+        is_favorited = self.request.GET.get('is_favorited')
         if is_favorited:
             queryset = queryset.filter(favorite=self.request.user)
 
@@ -171,9 +171,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         main = get_object_or_404(model_main, pk=pk)
         manager = getattr(main, model_mgr)
+        m2m_relation = manager.filter(id=request.user.id).exists()
 
         if request._request.method == 'POST':
-            if manager.filter(id=request.user.id).exists():
+            if m2m_relation:
                 return Response(
                     {'detail': MESSAGES['relation_already_exists']},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -182,7 +183,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             serializer = serializer_class(main)
             return Response(serializer.data)
 
-        if not manager.filter(id=request.user.id).exists():
+        if not m2m_relation:
             return Response(
                 {'detail': MESSAGES['relation_not_exists']},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -218,34 +219,22 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=(AuthorOrReadOnly,))
     def download_shopping_cart(self, request):
 
-        card_ingredients = {}
-        card_recipes = []
-        user_recipes = Recipe.objects.filter(shopping_card=request.user)
-        for recipe in user_recipes:
-            card_recipes.append(recipe.name)
-            recipe_ingredients = recipe.recipe_ingredients.all()
-            for ingredient in recipe_ingredients:
-                if ingredient.ingredient.id in card_ingredients:
-                    amount = (
-                        ingredient.amount
-                        + card_ingredients[ingredient.ingredient.id]['amount']
-                    )
-                else:
-                    amount = ingredient.amount
-                card_ingredients[ingredient.ingredient.id] = {
-                    'name': ingredient.ingredient.name,
-                    'measurement_unit': ingredient.ingredient.measurement_unit,
-                    'amount': amount,
-                }
+        card_recipes = Recipe.objects.filter(shopping_card=request.user)
+        card_ingredients = (
+            RecipeIngredient.objects.filter(recipe__in=card_recipes)
+            .values('ingredient__name', 'ingredient__measurement_unit')
+            .annotate(amount=Sum('amount'))
+        )
+
         timenow = timezone.now()
-        time_label = timenow.strftime("%b %d %Y %H:%M:%S")
+        time_label = timenow.strftime('%b %d %Y %H:%M:%S')
         template_card = 'download_shopping_cart.html'
         context = {
             'pagesize': settings.PDF_PAGE_SIZE,
-            "card_recipes": card_recipes,
-            "card_ingredients": card_ingredients,
-            "time_label": time_label,
-            "about": MESSAGES["pdf_about"],
+            'card_recipes': card_recipes,
+            'card_ingredients': card_ingredients,
+            'time_label': time_label,
+            'about': MESSAGES['pdf_about'],
         }
         return render_to_pdf(template_card, context)
 
@@ -254,7 +243,6 @@ class TagViewSet(viewsets.ModelViewSet):
     """ВьюСет для Тегов"""
     queryset = Tag.objects.all()
     serializer_class = TagSerializer
-    # permission_classes = (permissions.AllowAny,)
     pagination_class = None
 
 
@@ -269,17 +257,17 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
             Subscription.objects.filter(follower=user).values('follow')
         )
         subscription = User.objects.filter(id__in=followed_people)
-        recipes_limit = int(self.request.GET.get("recipes_limit"))
+        recipes_limit = int(self.request.GET.get('recipes_limit'))
         if recipes_limit:
             subqry = Subquery(
-                Recipe.objects.filter(author=OuterRef("author")).values_list(
-                    "id", flat=True
+                Recipe.objects.filter(author=OuterRef('author')).values_list(
+                    'id', flat=True
                 )[:recipes_limit]
             )
 
             subscription = subscription.prefetch_related(
                 Prefetch(
-                    "recipes", queryset=Recipe.objects.filter(id__in=subqry)
+                    'recipes', queryset=Recipe.objects.filter(id__in=subqry)
                 )
             )
 

@@ -5,7 +5,7 @@ from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
 from ingredients.models import Ingredient
-from recipes.models import Recipe, RecipeIngredients, Tag
+from recipes.models import Recipe, RecipeIngredient, Tag
 from users.models import User
 
 MESSAGES = {
@@ -111,7 +111,7 @@ class RecipeIngredientsSerializer(serializers.HyperlinkedModelSerializer):
     )
 
     class Meta:
-        model = RecipeIngredients
+        model = RecipeIngredient
         fields = (
             'id',
             'name',
@@ -166,8 +166,8 @@ class RecipeSerializer(serializers.ModelSerializer):
         return data
 
     def create_ingredients_tags(self, instance, ingredients, tags):
-        RecipeIngredients.objects.bulk_create(
-            [RecipeIngredients(
+        RecipeIngredient.objects.bulk_create(
+            [RecipeIngredient(
                 ingredient=Ingredient.objects.get(
                     id=ingrow.get('ingredient')['id']),
                 recipe=instance,

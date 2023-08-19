@@ -138,3 +138,5 @@ media/
 node_modules/
 
 .bak
+
+.fix

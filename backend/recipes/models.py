@@ -102,7 +102,7 @@ class Recipe(models.Model):
         return self.favorite.count()
 
 
-class RecipeIngredients(models.Model):
+class RecipeIngredient(models.Model):
     ingredient = models.ForeignKey(
         Ingredient,
         related_name='recipe_ingredients',
@@ -121,3 +121,13 @@ class RecipeIngredients(models.Model):
         null=False,
         validators=(validator_not_zero,),
     )
+
+    class Meta:
+        verbose_name = 'Рецепты Ингредиенты'
+        verbose_name_plural = 'Рецепты Ингредиенты'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['ingredient', 'recipe'],
+                name='unique_recipe_ingredient',
+            )
+        ]
