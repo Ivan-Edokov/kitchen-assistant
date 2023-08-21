@@ -95,10 +95,10 @@ class UserViewSet(viewsets.ModelViewSet):
 
         follow_user = get_object_or_404(User, id=id)
         me = get_object_or_404(User, id=request.user.id)
-        subscribe_queryset = me.follower.filter(follow=follow_user)
+        subscribe_queryset = me.follower.filter(follow=follow_user).exists()
 
         if request._request.method == 'POST':
-            if subscribe_queryset.exists():
+            if subscribe_queryset:
                 return Response(
                     {'detail': MESSAGES['double_subscription']},
                     status=status.HTTP_400_BAD_REQUEST,
@@ -107,12 +107,12 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer = SubscriptionSerializer(follow_user)
             return Response(serializer.data)
 
-        if not subscribe_queryset.exists():
+        if not subscribe_queryset:
             return Response(
                 {'detail': MESSAGES['no_subscribed']},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        subscribe_queryset.delete()
+        me.follower.filter(follow=follow_user).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -223,7 +223,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         card_ingredients = (
             RecipeIngredient.objects.filter(recipe__in=card_recipes)
             .values('ingredient__name', 'ingredient__measurement_unit')
-            .annotate(amount=Sum('amount'))
+            .annotate(total=Sum('amount'))
         )
 
         timenow = timezone.now()
