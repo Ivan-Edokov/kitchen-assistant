@@ -36,3 +36,12 @@ def render_to_pdf(template_src, context_dict={}):
     if not pdf.err:
         return HttpResponse(result.getvalue(), content_type='application/pdf')
     return HttpResponseBadRequest()
+
+
+def add_subscribed(obj, request):
+    if request and hasattr(request, 'user'):
+        return (
+            request.user.is_authenticated
+            and request.user.follower.filter(follow=obj).exists()
+        )
+    return False

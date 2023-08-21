@@ -7,6 +7,7 @@ from rest_framework import serializers
 from ingredients.models import Ingredient
 from recipes.models import Recipe, RecipeIngredient, Tag
 from users.models import User
+from .utils import add_subscribed
 
 MESSAGES = {
     'username_invalid': 'Недопустимое имя',
@@ -50,13 +51,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_is_subscribed(self, obj):
         request = self.context.get('request')
-        if request and hasattr(request, 'user'):
-            if (
-                request.user.is_authenticated
-                and request.user.follower.filter(follow=obj).exists()
-            ):
-                return True
-        return False
+        return add_subscribed(obj, request)
 
 
 class UserSetPasswordSerializer(serializers.ModelSerializer):
@@ -158,20 +153,19 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
 
-        unic_ingredients = dict()
+        unic_ingredients = list()
         for ingredient in data['recipe_ingredients']:
-            if ingredient['ingredient']['id'] in unic_ingredients:
+            if ingredient in unic_ingredients:
                 raise serializers.ValidationError(MESSAGES['ingredients_unic'])
-            unic_ingredients[ingredient['ingredient']['id']] = True
+            unic_ingredients.append(ingredient)
         return data
 
     def create_ingredients_tags(self, instance, ingredients, tags):
         RecipeIngredient.objects.bulk_create(
             [RecipeIngredient(
-                ingredient=Ingredient.objects.get(
-                    id=ingrow.get('ingredient')['id']),
+                ingredient_id=ingrow['ingredient']['id'],
                 recipe=instance,
-                amount=ingrow.get('amount')
+                amount=ingrow['amount']
             ) for ingrow in ingredients]
         )
         instance.tags.set(tags)
@@ -194,25 +188,23 @@ class RecipeSerializer(serializers.ModelSerializer):
         self.create_ingredients_tags(instance, recipe_ingredients, tag_list)
         return super().update(instance, validated_data)
 
-    def get_is_favorited(self, obj):
+    def status(self, obj):
         request = self.context.get('request')
         if request and hasattr(request, 'user'):
             if (
                 request.user.is_authenticated
-                and obj.favorite.filter(id=request.user.id).exists()
+                and obj.filter(id=request.user.id).exists()
             ):
                 return True
         return False
 
+    def get_is_favorited(self, obj):
+
+        return self.status(obj.favorite)
+
     def get_is_in_shopping_cart(self, obj):
-        request = self.context.get('request')
-        if request and hasattr(request, 'user'):
-            if (
-                request.user.is_authenticated
-                and obj.shopping_card.filter(id=request.user.id).exists()
-            ):
-                return True
-        return False
+
+        return self.status(obj.shopping_card)
 
 
 class RecipeShotSerializer(serializers.ModelSerializer):
@@ -253,12 +245,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     def get_is_subscribed(self, obj):
 
         request = self.context.get('request')
-        if request and hasattr(request, 'user'):
-            return (
-                request.user.is_authenticated
-                and request.user.follower.filter(follow=obj).exists()
-            )
-        return False
+        return add_subscribed(obj, request)
 
     def get_recipes_count(self, obj):
         return User.objects.get(id=obj.id).recipes.count()
